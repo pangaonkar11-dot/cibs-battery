@@ -1684,7 +1684,7 @@ const getAgeNorms = (age) => {
   };
 };
 
-const generateUID = (mobile, dob, gender) => {
+const generateLocalUID = (mobile, dob, gender) => {
   const last6 = (mobile||"").replace(/\D/g,"").slice(-6).padStart(6,"0");
   const now = new Date();
   const dd = String(now.getDate()).padStart(2,"0");
@@ -4034,7 +4034,7 @@ const UnifiedDemographics = ({ vistaComplete, validComplete, onComplete }) => {
   const [form, setForm] = useState({ name:"", age:"", gender:"", mobile:"", edu:"", language:"", setting:"", purpose:"", examiner:"", email:"", ref:"" });
   const f = (k,v) => setForm(p=>({...p,[k]:v}));
   const canProceed = form.age && form.gender && (form.mobile.length === 10 || form.ref.trim().length > 0);
-  const uid = generateUID(form.mobile, "", form.gender);
+  const uid = generateLocalUID(form.mobile, "", form.gender);
 
   const LBL = { display:"block", fontSize:10, fontWeight:700, color:"#1a2e4a", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:4 };
   const INP = { width:"100%", padding:"10px 12px", border:"1.5px solid #cbd5e1", borderRadius:10, fontSize:13,
