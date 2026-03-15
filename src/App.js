@@ -1606,18 +1606,18 @@ const classPHQ = (score) => {
 
 const scoreCSS = (resp) => {
   const pos = Object.values(resp).filter(Boolean).length;
-  if (pos===0) return { level:0, label:"No ideation", color:"#10B981" };
-  if (pos<=1)  return { level:1, label:"Passive ideation", color:"#84CC16" };
-  if (pos<=2)  return { level:2, label:"Active ideation (no plan)", color:"#F59E0B" };
-  if (pos<=3)  return { level:3, label:"Ideation with plan", color:"#F97316" };
-  return              { level:4, label:"Intent with rehearsal", color:"#EF4444" };
+  if (pos===0) return { score:0, level:0, label:"No ideation", color:"#10B981" };
+  if (pos<=1)  return { score:1, level:1, label:"Passive ideation", color:"#84CC16" };
+  if (pos<=2)  return { score:2, level:2, label:"Active ideation (no plan)", color:"#F59E0B" };
+  if (pos<=3)  return { score:3, level:3, label:"Ideation with plan", color:"#F97316" };
+  return       { score:4, level:4, label:"Intent with rehearsal", color:"#EF4444" };
 };
 
 const scoreAUDIT = (resp) => {
   const s = Object.entries(resp).reduce((a,[k,v]) => a + AUDITC[parseInt(k)].sc[v], 0);
-  if (s<=3)  return { score:s, label:"Low risk", color:"#10B981" };
-  if (s<=7)  return { score:s, label:"Hazardous use", color:"#F59E0B" };
-  return          { score:s, label:"Harmful / Dependent", color:"#EF4444" };
+  if (s<=3)  return { score:s, level:0, label:"Low risk", color:"#10B981" };
+  if (s<=7)  return { score:s, level:1, label:"Hazardous use", color:"#F59E0B" };
+  return     { score:s, level:2, label:"Harmful / Dependent", color:"#EF4444" };
 };
 
 // ── Age-adjusted normative ranges ────────────────────────────────────────────
@@ -4333,12 +4333,12 @@ const CombinedReport = ({ vistaSeqs, vistaResults, validResp, demographics }) =>
                 )}
                 {duke && (
                   <div style={{ fontSize:13, color:"#374151", lineHeight:1.8, marginBottom:vD4?10:0 }}>
-                    <strong>Health (questionnaire):</strong> Your overall health score is {duke.overall}/100.{" "}
-                    {duke.overall>=70?"This reflects generally good wellbeing across physical, mental, and social dimensions.":
-                     duke.overall>=50?"Your wellbeing is moderate — there are specific areas worth giving more attention to.":
+                    <strong>Health (questionnaire):</strong> Your overall health score is {duke.general}/100.{" "}
+                    {duke.general>=70?"This reflects generally good wellbeing across physical, mental, and social dimensions.":
+                     duke.general>=50?"Your wellbeing is moderate — there are specific areas worth giving more attention to.":
                      "Your overall wellbeing score suggests you may be going through a difficult period. Please do speak with someone you trust or a health professional."}
                     {duke.mental<60?" Your mental health subscale suggests some emotional strain that deserves attention.":""}
-                    {duke.physical<60?" Your physical health subscale is below average — it may be worth discussing this with your doctor.":""}
+                    {duke.phys<60?" Your physical health subscale is below average — it may be worth discussing this with your doctor.":""}
                     {duke.social<60?" Social support appears low — connection and community can be a powerful buffer against stress.":""}
                   </div>
                 )}
@@ -4489,9 +4489,9 @@ const CombinedReport = ({ vistaSeqs, vistaResults, validResp, demographics }) =>
                     </tr></thead>
                     <tbody>
                       {[
-                        ["Overall Health",duke.overall,"≥60 normal",duke.overall<60],
+                        ["Overall Health",duke.general,"≥60 normal",duke.general<60],
                         ["Mental Health",duke.mental,"≥60 normal",duke.mental<60],
-                        ["Physical Health",duke.physical,"≥60 normal",duke.physical<60],
+                        ["Physical Health",duke.phys,"≥60 normal",duke.phys<60],
                         ["Social Health",duke.social,"≥60 normal",duke.social<60],
                         ["Self-Esteem",duke.selfEsteem,"≥60 normal",duke.selfEsteem<60],
                         ["Anxiety",duke.anxiety,"<40 normal",duke.anxiety>40],
