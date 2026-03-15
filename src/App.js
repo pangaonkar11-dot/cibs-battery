@@ -4720,14 +4720,10 @@ export default function CIBSBattery() {
     setDemographics(demo);
     setScreen("processing");
 
-    // ── Run VISTA report engine ───────────────────────────────────
-    let reportResults = null;
-    if (shapeSeq.length > 0) {
-      reportResults = await runVistaReport(shapeSeq, colorSeq, shadeSeq,
-        smileySeq.length > 0 ? smileySeq : shapeSeq, demo);
-    }
-
-    // ── Generate UID and submit to Google Sheets ──────────────────
+    // ══════════════════════════════════════════════════════════════
+    // STEP 1: SUBMIT DATA FIRST — before any report generation
+    // This ensures data reaches Google Sheets even if report crashes
+    // ══════════════════════════════════════════════════════════════
     try {
       const uid = await generateUID(
         demo.name || "",
@@ -4736,17 +4732,26 @@ export default function CIBSBattery() {
       );
       const source = getSource();
       const device = getDevice();
-      const r = reportResults || vistaResults || {};
-      // ── Score VALID responses if available ───────────────────────
-      const vBFI  = validResp ? scoreBFI(validResp.d2)   : null;
-      const vDuke = validResp ? scoreDuke(validResp.d3)  : null;
+
+      // Score VISTA clinical data
+      let vistaScored = null;
+      if (shapeSeq.length > 0) {
+        try { vistaScored = computeClinical(shapeSeq, colorSeq, shadeSeq,
+          smileySeq.length > 0 ? smileySeq : shapeSeq); } catch(e) {}
+      }
+
+      // Score VALID responses
+      const vBFI  = validResp ? scoreBFI(validResp.d2) : null;
+      const vDuke = validResp ? scoreDuke(validResp.d3) : null;
       const vCSS  = validResp ? scoreCSS(
-        Object.fromEntries(CSSRS.map((_,i)=>[`css${i+1}`, validResp.d4[`css${i+1}`]]))
+        Object.fromEntries(CSSRS.map((_,i)=>[`css${i+1}`, validResp.d4?.[`css${i+1}`]]))
       ) : null;
       const vAUD  = validResp ? scoreAUDIT(
-        Object.fromEntries(AUDITC.map((_,i)=>[`${i}`, validResp.d4[`aud${i+1}`]??0]))
+        Object.fromEntries(AUDITC.map((_,i)=>[`${i}`, validResp.d4?.[`aud${i+1}`]??0]))
       ) : null;
-      const vCAT  = validResp ? scoreCAT(validResp.d1)   : null;
+      const vCAT  = validResp ? scoreCAT(validResp.d1) : null;
+
+      const r = vistaScored || {};
 
       const payload = {
         uid,
@@ -4755,33 +4760,30 @@ export default function CIBSBattery() {
         language: testLang || "en",
         name: demo.name || "",
         age: demo.age || "",
-        dob: demo.dob || "",
         gender: demo.gender || "",
         education: demo.edu || "",
-        occupation: demo.occupation || "",
         mobile: demo.mobile || "",
-        city: demo.city || "",
-        state: demo.state || "",
         diagnosis: demo.diagnosis || "",
-        // ── VISTA scores ──────────────────────────────────────────
-        vistaShapeSeq: shapeSeq,
-        vistaColorSeq: colorSeq,
-        vistaShadeSeq: shadeSeq,
-        vistaSmileySeq: smileySeq,
-        CQ: r?.d1?.CQ || "",
-        iqBand: r?.d1?.iqBand?.band || "",
-        EQ: r?.d3?.EQSS || "",
-        eqBand: r?.d3?.eqBand?.band || "",
-        distressLevel: r?.d4?.phqAnalog?.level || "",
-        distressSeverity: r?.d4?.phqAnalog?.severity || "",
-        riskLevel: r?.d5?.CRI || "",
-        riskFlag: r?.d5?.maxFlag || "",
-        big5Openness: r?.d2?.BFt?.O || "",
-        big5Conscientiousness: r?.d2?.BFt?.C || "",
-        big5Extraversion: r?.d2?.BFt?.E || "",
-        big5Agreeableness: r?.d2?.BFt?.A || "",
-        big5Neuroticism: r?.d2?.BFt?.N || "",
-        // ── VALID scores (properly scored) ───────────────────────
+        examiner: demo.examiner || "",
+        setting: demo.setting || "",
+        // ── VISTA raw sequences ──────────────────────────────────
+        vistaShapeSeq: (shapeSeq||[]).join(","),
+        vistaColorSeq: (colorSeq||[]).join(","),
+        vistaShadeSeq: (shadeSeq||[]).join(","),
+        vistaSmileySeq: (smileySeq||[]).join(","),
+        // ── VISTA scored domains ─────────────────────────────────
+        vistaCQ: r?.d1?.CQ || "",
+        vistaIQBand: r?.d1?.iqBand?.band || "",
+        vistaEQ: r?.d3?.EQSS || "",
+        vistaEQBand: r?.d3?.eqBand?.band || "",
+        vistaDistress: r?.d4?.phqAnalog?.level || "",
+        vistaRisk: r?.d5?.CRI || "",
+        vistaBF_O: r?.d2?.BFt?.O || "",
+        vistaBF_C: r?.d2?.BFt?.C || "",
+        vistaBF_E: r?.d2?.BFt?.E || "",
+        vistaBF_A: r?.d2?.BFt?.A || "",
+        vistaBF_N: r?.d2?.BFt?.N || "",
+        // ── VALID scored domains ─────────────────────────────────
         validCQ: vCAT?.iq || "",
         validCQBand: vCAT?.label || "",
         validCQPercentile: vCAT?.pctRank || "",
@@ -4799,15 +4801,28 @@ export default function CIBSBattery() {
         validDepression: vDuke?.depression || "",
         validPain: vDuke?.pain || "",
         validDisability: vDuke?.disability || "",
-        validCSSSLevel: vCSS?.level || 0,
+        validCSSSLevel: vCSS?.level ?? "",
         validCSSSLabel: vCSS?.label || "",
-        validAUDITScore: vAUD?.score || 0,
+        validAUDITScore: vAUD?.score ?? "",
         validAUDITLabel: vAUD?.label || "",
       };
+
       await submitToSheet(payload);
+      console.log("✅ CIBS data submitted to Google Sheets");
     } catch(err) {
-      console.error("Data submission failed:", err);
-      // App continues even if submission fails — report still shown
+      console.error("❌ Data submission failed:", err);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // STEP 2: NOW generate the visual report (safe to crash here)
+    // ══════════════════════════════════════════════════════════════
+    try {
+      if (shapeSeq.length > 0) {
+        await runVistaReport(shapeSeq, colorSeq, shadeSeq,
+          smileySeq.length > 0 ? smileySeq : shapeSeq, demo);
+      }
+    } catch(err) {
+      console.error("Report generation error:", err);
     }
 
     setScreen("report");
