@@ -366,73 +366,44 @@ function computeClinical(sSeq, cSeq, shSeq, smSeq) {
 // ══════════════════════════════════════════════════════════════════════════════
 async function vistaGenerateReport(clinical, participant) {
   const {d1,d2,d3,d4,d5,meta} = clinical;
-  const subj = `${participant.name||"Subject"}, ${participant.age?participant.age+" years old,":""} ${participant.gender==="M"?"Male":participant.gender==="F"?"Female":participant.gender||"gender unspecified"}${participant.edu?", Education: "+participant.edu:""}`;
+  const subj = participant.name || "The subject";
+  const age  = participant.age ? `aged ${participant.age}` : "";
+  const gen  = participant.gender==="Male"||participant.gender==="M" ? "He" :
+               participant.gender==="Female"||participant.gender==="F" ? "She" : "They";
+  const gen2 = participant.gender==="Male"||participant.gender==="M" ? "his" :
+               participant.gender==="Female"||participant.gender==="F" ? "her" : "their";
 
-  const prompt = `You are a senior clinical psychologist writing a formal psychometric assessment report for a clinician. Write in formal, technical third-person clinical language throughout. This is a SCST (Shape Colour Shade Smiley Test) evaluation. The SCST is a non-verbal projective psychometric instrument.
+  // ── Domain 1: Cognitive ──────────────────────────────────────────
+  const nd1 = `${subj}${age?" ("+age+")":""} obtained a SCST-CQ score of ${d1.CQ}, placing ${gen2} intellectual functioning in the ${d1.iqBand.band} range at the ${d1.iqBand.percentile} percentile. ${d1.iqBand.desc}. The primary cognitive style elicited is ${d1.primaryStyle}, with a secondary orientation towards ${d1.secondaryStyle}, and a processing orientation characterised as ${d1.procOrient}. Cognitive flexibility, as indexed by the differential complexity between most-preferred (${d1.topShape.name}) and least-preferred (${d1.botShape.name}) stimuli, is rated as ${d1.flexLabel} (raw gap = ${d1.flexIndex}). The neutral baseline shape (${d1.midShape.name}, Position D) is consistent with a ${d1.midLabel}.`;
 
-SUBJECT: ${subj}
-SCST CODES: Shape ${meta.shapeCode} | Colour ${meta.colorCode} | Shade ${meta.shadeCode} | Smiley ${meta.smileyCode}
-Primary Stimulus Selections: Shape — ${meta.firstShape} | Colour — ${meta.firstColor} | ${meta.firstShade} | Affect — ${meta.firstSmiley}
+  // ── Domain 2: Personality ────────────────────────────────────────
+  const nd2 = `Personality organisation on the SCST yields a pattern consistent with ${d2.dsmCluster} (${d2.dsmFeatures}). ${d2.dsmDesc} NEO-PI analog Big Five T-scores are as follows: Openness T=${d2.BFt.O} (${d2.bfDesc.O}); Conscientiousness T=${d2.BFt.C} (${d2.bfDesc.C}); Extraversion T=${d2.BFt.E} (${d2.bfDesc.E}); Agreeableness T=${d2.BFt.A} (${d2.bfDesc.A}); Neuroticism T=${d2.BFt.N} (${d2.bfDesc.N}). Clinical note: ${d2.dsmClinical}`;
 
-═══ DOMAIN 1 — COGNITIVE FUNCTION ═══
-SCST-CQ Score: ${d1.CQ} | Band: ${d1.iqBand.band} | Percentile: ${d1.iqBand.percentile}
-Primary Cognitive Style: ${d1.primaryStyle} | Secondary: ${d1.secondaryStyle}
-Cognitive Flexibility Index: ${d1.flexLabel} (raw gap = ${d1.flexIndex})
-Processing Orientation: ${d1.procOrient}
-Most preferred shape: ${d1.topShape.name} (${d1.topShape.cogStyle}) | Least: ${d1.botShape.name} | Mid-point: ${d1.midShape.name} (${d1.midLabel})
+  // ── Domain 3: EQ / Emotional Stability ──────────────────────────
+  const nd3 = `The subject's SCST-EQ Standard Score of ${d3.EQSS} situates ${gen2} emotional intelligence in the ${d3.eqBand.band} range (${d3.eqBand.percentile} percentile). ${d3.eqBand.desc}. The Emotional Stability Index (ESI) is ${d3.ESI}/100, with sub-scale scores of Self-Awareness ${d3.selfAwareness}/100, Emotional Regulation ${d3.emoRegulation}/100, and Resilience ${d3.emoResilience}/100. Primary shade selection (${meta.firstShade}) yields an Emotional Burden Index of ${d3.shadePrimary.mentalBurden}/100 and a Rumination Index of ${d3.ruminScore}/100, indicating ${d3.shadePrimary.mentalBurden>=60?"a clinically significant emotional burden requiring targeted intervention":"emotional burden within manageable parameters"}. The predominant affective state elicited is ${d3.affState} with a ${d3.affValence} valence profile.`;
 
-═══ DOMAIN 2 — PERSONALITY ORGANISATION ═══
-DSM-5 Classification: ${d2.dsmCluster} — ${d2.dsmFeatures}
-${d2.dsmDesc}
-Big Five T-Scores: O=${d2.BFt.O} C=${d2.BFt.C} E=${d2.BFt.E} A=${d2.BFt.A} N=${d2.BFt.N}
-Openness (T=${d2.BFt.O}): ${d2.bfDesc.O}
-Conscientiousness (T=${d2.BFt.C}): ${d2.bfDesc.C}
-Extraversion (T=${d2.BFt.E}): ${d2.bfDesc.E}
-Agreeableness (T=${d2.BFt.A}): ${d2.bfDesc.A}
-Neuroticism (T=${d2.BFt.N}): ${d2.bfDesc.N}
-Clinical note: ${d2.dsmClinical}
+  // ── Domain 4: Health ─────────────────────────────────────────────
+  const nd4 = `The Mental Health Index (MHI) is ${d4.MHI}/100 with a PHQ-9 analogue distress classification of ${d4.phqAnalog.level}. ${d4.phqAnalog.desc}. Anxiety indicators are rated ${d4.anxLevel} (index ${d4.anxIdx}/100) and depressive indicators are rated ${d4.depLevel} (index ${d4.depIdx}/100). Physical health autonomic arousal is characterised as ${d4.physArousal} with a Physical Health Index of ${d4.physNorm}/100. Social Functioning Index (SFI) is ${d4.SFI}/100 — ${d4.sfLevel}. The Overall Wellbeing Composite is ${d4.overallWBI}/100.`;
 
-═══ DOMAIN 3 — EMOTIONAL INTELLIGENCE & STABILITY ═══
-SCST-EQ Standard Score: ${d3.EQSS} | Band: ${d3.eqBand.band} | Percentile: ${d3.eqBand.percentile}
-Emotional Stability Index: ${d3.ESI}/100
-Sub-scales: Self-Awareness=${d3.selfAwareness}/100 | Regulation=${d3.emoRegulation}/100 | Resilience=${d3.emoResilience}/100
-Shade primary selection: ${meta.firstShade} — emotional burden indicator ${d3.shadePrimary.mentalBurden}/100; rumination index ${d3.ruminScore}/100
-Primary affect state: ${d3.affState} (${d3.affValence})
+  // ── Domain 5: Risk ───────────────────────────────────────────────
+  const nd5 = `Risk factor profiling on the SCST yields the following indices. Suicidal Ideation Risk (Columbia CSSRS analogue) is rated ${d5.SIR.level} (raw index ${d5.SIR_raw}/100); indicators: ${d5.SIR_indicators.join("; ")}. Substance Use Risk is rated ${d5.SUR.level} (raw index ${d5.SUR_raw}/100); indicators: ${d5.SUR_indicators.join("; ")}. Conduct/Delinquency Risk is rated ${d5.CDR.level} (raw index ${d5.CDR_raw}/100); indicators: ${d5.CDR_indicators.join("; ")}. The Combined Risk Index is ${d5.CRI}. All elevated risk indicators must be confirmed through structured clinical interview and validated primary scales before any intervention decision.`;
 
-═══ DOMAIN 4 — HEALTH INDICATORS ═══
-Mental Health Index: ${d4.MHI}/100 | Distress Level: ${d4.phqAnalog.level}
-Anxiety Indicator: ${d4.anxLevel} (index ${d4.anxIdx}/100)
-Depression Indicator: ${d4.depLevel} (index ${d4.depIdx}/100)
-Physical Health — Autonomic Arousal: ${d4.physArousal} | Index ${d4.physNorm}/100
-Social Functioning Index: ${d4.SFI}/100 — ${d4.sfLevel}
-Overall Wellbeing Composite: ${d4.overallWBI}/100
+  // ── Integrated Impression ────────────────────────────────────────
+  const impression = `${subj}${age?" ("+age+")":""} presents on the SCST with a ${d1.iqBand.band} cognitive profile (CQ=${d1.CQ}), a ${d2.dsmCluster} personality organisation pattern, and an Emotional Intelligence Standard Score of ${d3.EQSS} (${d3.eqBand.band} range). The overall wellbeing composite of ${d4.overallWBI}/100 with a distress classification of ${d4.phqAnalog.level} warrants ${d4.overallWBI<50?"immediate clinical attention":"routine clinical monitoring"}. The Combined Risk Index is ${d5.CRI}, necessitating ${d5.maxFlag>=3?"urgent structured clinical evaluation":"clinical vigilance and scheduled follow-up"}.`;
 
-═══ DOMAIN 5 — RISK FACTOR PROFILE ═══
-Suicidal Ideation Risk (CSSRS-analog): ${d5.SIR.level} (raw ${d5.SIR_raw})
-Indicators: ${d5.SIR_indicators.join("; ")}
-Substance Use Risk: ${d5.SUR.level} (raw ${d5.SUR_raw})
-Indicators: ${d5.SUR_indicators.join("; ")}
-Conduct/Delinquency Risk: ${d5.CDR.level} (raw ${d5.CDR_raw})
-Indicators: ${d5.CDR_indicators.join("; ")}
-Combined Risk Index: ${d5.CRI}
+  // ── Recommendations ──────────────────────────────────────────────
+  const recs = [
+    `1. Administer gold-standard cognitive battery (Wechsler/NIMHANS) to corroborate SCST-CQ estimate of ${d1.CQ} (${d1.iqBand.band} band).`,
+    `2. Conduct structured personality assessment (NEO-PI-3 or PID-5) to verify ${d2.dsmCluster} pattern identified on SCST.`,
+    `3. Administer validated emotional assessment (EQ-i 2.0 or MSCEIT) to corroborate SCST-EQ score of ${d3.EQSS}.`,
+    `4. Apply PHQ-9 and GAD-7 to formally quantify distress indicators (current SCST classification: ${d4.phqAnalog.level}).`,
+    d5.SIR.flag>=2 ? `5. PRIORITY: Administer Columbia C-SSRS in full; SIR rated ${d5.SIR.level} on SCST — structured safety assessment mandatory.` :
+                    `5. Complete Columbia C-SSRS at next clinical contact; current SCST SIR indicator is ${d5.SIR.level}.`,
+    `6. Review social support network and physical health indicators (SFI=${d4.SFI}/100, PHI=${d4.physNorm}/100).`,
+    `7. Schedule follow-up SCST reassessment after any significant therapeutic intervention or major life event.`,
+  ].join("\n");
 
-Write formal clinical interpretive paragraphs for each domain (3–5 sentences). Use technical psychometric language appropriate for a clinical psychologist reading this report. Reference the scores explicitly. Third person throughout. Do NOT soften language for the subject — this is a clinician-to-clinician document. Be precise, evidence-referenced, and clinically informative.
-
-Return ONLY valid JSON with no markdown:
-{"d1":"...","d2":"...","d3":"...","d4":"...","d5":"...","impression":"...","recommendations":"..."}
-
-The "impression" key should be a concise integrated clinical summary (3-4 sentences). The "recommendations" key should contain 5-7 prioritised clinical action points as a single string with numbered lines separated by \\n.`;
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1800,
-        messages:[{role:"user",content:prompt}]})});
-    const data = await res.json();
-    const txt  = (data.content||[]).map(b=>b.text||"").join("");
-    const clean= txt.replace(/```json|```/g,"").trim();
-    return JSON.parse(clean.slice(clean.indexOf("{"),clean.lastIndexOf("}")+1));
-  } catch(e){ return {d1:"Error generating report.",d2:"",d3:"",d4:"",d5:"",impression:"",recommendations:""}; }
+  return { d1:nd1, d2:nd2, d3:nd3, d4:nd4, d5:nd5, impression, recommendations:recs };
 }
 
 
