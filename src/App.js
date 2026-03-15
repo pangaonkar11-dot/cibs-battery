@@ -4737,6 +4737,17 @@ export default function CIBSBattery() {
       const source = getSource();
       const device = getDevice();
       const r = reportResults || vistaResults || {};
+      // ── Score VALID responses if available ───────────────────────
+      const vBFI  = validResp ? scoreBFI(validResp.d2)   : null;
+      const vDuke = validResp ? scoreDuke(validResp.d3)  : null;
+      const vCSS  = validResp ? scoreCSS(
+        Object.fromEntries(CSSRS.map((_,i)=>[`css${i+1}`, validResp.d4[`css${i+1}`]]))
+      ) : null;
+      const vAUD  = validResp ? scoreAUDIT(
+        Object.fromEntries(AUDITC.map((_,i)=>[`${i}`, validResp.d4[`aud${i+1}`]??0]))
+      ) : null;
+      const vCAT  = validResp ? scoreCAT(validResp.d1)   : null;
+
       const payload = {
         uid,
         source,
@@ -4746,35 +4757,52 @@ export default function CIBSBattery() {
         age: demo.age || "",
         dob: demo.dob || "",
         gender: demo.gender || "",
-        education: demo.education || "",
+        education: demo.edu || "",
         occupation: demo.occupation || "",
         mobile: demo.mobile || "",
         city: demo.city || "",
         state: demo.state || "",
         diagnosis: demo.diagnosis || "",
+        // ── VISTA scores ──────────────────────────────────────────
         vistaShapeSeq: shapeSeq,
         vistaColorSeq: colorSeq,
         vistaShadeSeq: shadeSeq,
         vistaSmileySeq: smileySeq,
         CQ: r?.d1?.CQ || "",
         iqBand: r?.d1?.iqBand?.band || "",
-        EQ: r?.d2?.EQ || "",
-        eqBand: r?.d2?.eqBand?.band || "",
-        distressLevel: r?.d3?.distress?.level || "",
-        distressSeverity: r?.d3?.distress?.severity || "",
-        riskLevel: r?.d5?.risk?.level || "",
-        riskFlag: r?.d5?.risk?.flag || "",
-        big5Openness: r?.d4?.big5?.openness || "",
-        big5Conscientiousness: r?.d4?.big5?.conscientiousness || "",
-        big5Extraversion: r?.d4?.big5?.extraversion || "",
-        big5Agreeableness: r?.d4?.big5?.agreeableness || "",
-        big5Neuroticism: r?.d4?.big5?.neuroticism || "",
-        validDepression: validResp?.depression || "",
-        validAnxiety: validResp?.anxiety || "",
-        validStress: validResp?.stress || "",
-        validSleep: validResp?.sleep || "",
-        validPhysical: validResp?.physical || "",
-        validSocial: validResp?.social || "",
+        EQ: r?.d3?.EQSS || "",
+        eqBand: r?.d3?.eqBand?.band || "",
+        distressLevel: r?.d4?.phqAnalog?.level || "",
+        distressSeverity: r?.d4?.phqAnalog?.severity || "",
+        riskLevel: r?.d5?.CRI || "",
+        riskFlag: r?.d5?.maxFlag || "",
+        big5Openness: r?.d2?.BFt?.O || "",
+        big5Conscientiousness: r?.d2?.BFt?.C || "",
+        big5Extraversion: r?.d2?.BFt?.E || "",
+        big5Agreeableness: r?.d2?.BFt?.A || "",
+        big5Neuroticism: r?.d2?.BFt?.N || "",
+        // ── VALID scores (properly scored) ───────────────────────
+        validCQ: vCAT?.iq || "",
+        validCQBand: vCAT?.label || "",
+        validCQPercentile: vCAT?.pctRank || "",
+        validBFI_O: vBFI?.O || "",
+        validBFI_C: vBFI?.C || "",
+        validBFI_E: vBFI?.E || "",
+        validBFI_A: vBFI?.A || "",
+        validBFI_N: vBFI?.N || "",
+        validPhysical: vDuke?.phys || "",
+        validMental: vDuke?.mental || "",
+        validSocial: vDuke?.social || "",
+        validGeneral: vDuke?.general || "",
+        validSelfEsteem: vDuke?.selfEsteem || "",
+        validAnxiety: vDuke?.anxiety || "",
+        validDepression: vDuke?.depression || "",
+        validPain: vDuke?.pain || "",
+        validDisability: vDuke?.disability || "",
+        validCSSSLevel: vCSS?.level || 0,
+        validCSSSLabel: vCSS?.label || "",
+        validAUDITScore: vAUD?.score || 0,
+        validAUDITLabel: vAUD?.label || "",
       };
       await submitToSheet(payload);
     } catch(err) {
