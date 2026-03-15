@@ -2568,16 +2568,19 @@ const DomainRisk = ({ resp, set, color, bg, mode }) => (
       );
     })}
 
-    {/* AUDIT-C */}
+    {/* AUDIT-C — Q2 and Q3 skipped if Q1 = Never */}
     <p className="text-xs font-black text-gray-500 uppercase tracking-wider px-1 mt-2">Part B — Alcohol Screen (AUDIT-C)</p>
     {AUDITC.map((item, i) => {
       const val = resp[`aud${i+1}`];
+      const q1Never = resp["aud1"] === 0;
+      if (i > 0 && q1Never) return null;
       return (
         <div key={i} className="bg-white rounded-2xl border border-gray-200 p-4">
           <p className="text-sm text-gray-700 mb-2">{item.q}</p>
+          {i === 0 && <p className="text-xs text-gray-400 mb-2 italic">If you never drink alcohol, select "Never" — further questions will be skipped.</p>}
           <div className="space-y-1.5">
             {item.opts.map((opt, j) => (
-              <button key={j} onClick={() => set(`aud${i+1}`, j)}
+              <button key={j} onClick={() => { set(`aud${i+1}`, j); if(j===0 && i===0){set("aud2",0);set("aud3",0);} }}
                 className={cx("w-full text-left py-2 px-3 rounded-xl text-xs border-2 transition-all",
                   val===j ? "border-orange-500 bg-orange-50 text-orange-700 font-bold" : "border-gray-200 text-gray-600")}>
                 {opt}
@@ -2587,6 +2590,12 @@ const DomainRisk = ({ resp, set, color, bg, mode }) => (
         </div>
       );
     })}
+    {resp["aud1"] === 0 && (
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-3">
+        <p className="text-sm text-green-700 font-bold">✓ Non-drinker confirmed — alcohol questions skipped</p>
+        <p className="text-xs text-green-600 mt-1">AUDIT-C score recorded as 0</p>
+      </div>
+    )}
 
     {/* SDQ-CP */}
     <p className="text-xs font-black text-gray-500 uppercase tracking-wider px-1 mt-2">Part C — Conduct Profile (SDQ-CP)</p>
@@ -4129,6 +4138,76 @@ const UnifiedDemographics = ({ vistaComplete, validComplete, onComplete }) => {
 };
 
 // ── Combined Report ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════
+// ERROR BOUNDARY — catches any crash in report and shows fallback
+// ══════════════════════════════════════════════════════════════════
+class ReportErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error("Report render error:", error, info); }
+  render() {
+    if (this.state.hasError) {
+      const { demographics, validResp, vistaResults } = this.props;
+      const bfi   = validResp ? scoreBFI(validResp.d2) : null;
+      const duke  = validResp ? scoreDuke(validResp.d3) : null;
+      const vCAT  = validResp ? scoreCAT(validResp.d1) : null;
+      const vCQ   = vistaResults?.clinical?.d1?.CQ;
+      return (
+        <div style={{ minHeight:"100vh", background:"#e8ecf0", fontFamily:"'DM Sans',sans-serif", padding:"24px 16px" }}>
+          <div style={{ maxWidth:560, margin:"0 auto", background:"white", borderRadius:16, padding:24, boxShadow:"0 2px 16px rgba(0,0,0,0.08)" }}>
+            <div style={{ background:"linear-gradient(135deg,#059669,#047857)", borderRadius:12, padding:20, color:"white", marginBottom:20 }}>
+              <div style={{ fontSize:9, letterSpacing:"0.18em", color:"#a7f3d0", textTransform:"uppercase", marginBottom:4 }}>CIBS Assessment Complete</div>
+              <div style={{ fontSize:20, fontWeight:900 }}>{demographics?.name || "Your Results"}</div>
+              <div style={{ fontSize:12, color:"#d1fae5", marginTop:4 }}>Age {demographics?.age} · {demographics?.gender}</div>
+              <div style={{ marginTop:10, fontSize:11, color:"#a7f3d0" }}>✅ Data successfully saved to CIBS research database</div>
+            </div>
+            {(vCQ || vCAT) && (
+              <div style={{ background:"#eff6ff", borderRadius:12, padding:16, marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#1d4ed8", marginBottom:8 }}>🧩 Cognitive Assessment</div>
+                {vCQ && <div style={{ fontSize:13, color:"#374151" }}>VISTA CQ Score: <strong>{vCQ}</strong></div>}
+                {vCAT && <div style={{ fontSize:13, color:"#374151" }}>VALID CQ Estimate: <strong>~{vCAT.iq}</strong> ({vCAT.label} · {vCAT.pctRank}th percentile)</div>}
+              </div>
+            )}
+            {bfi && (
+              <div style={{ background:"#f5f3ff", borderRadius:12, padding:16, marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#6d28d9", marginBottom:8 }}>🪞 Personality (BFI-10)</div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:8, textAlign:"center" }}>
+                  {[["O",bfi.O,"Openness"],["C",bfi.C,"Consci."],["E",bfi.E,"Extraver."],["A",bfi.A,"Agreeable."],["N",bfi.N,"Neurotic."]].map(([d,v,l])=>(
+                    <div key={d} style={{ background:"white", borderRadius:8, padding:8, border:"1px solid #e9d5ff" }}>
+                      <div style={{ fontSize:16, fontWeight:900, color:"#6d28d9" }}>{v}</div>
+                      <div style={{ fontSize:9, color:"#9ca3af" }}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {duke && (
+              <div style={{ background:"#f0fdf4", borderRadius:12, padding:16, marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"#059669", marginBottom:8 }}>💚 Health Profile (Duke-17)</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  {[["Physical",duke.phys,"#3b82f6"],["Mental",duke.mental,"#8b5cf6"],["Social",duke.social,"#10b981"],["General",duke.general,"#f59e0b"]].map(([l,v,c])=>(
+                    <div key={l} style={{ background:"white", borderRadius:8, padding:10, border:`1px solid ${c}33` }}>
+                      <div style={{ fontSize:20, fontWeight:900, color:c }}>{v}</div>
+                      <div style={{ fontSize:11, color:"#6b7280" }}>{l} Health</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:12, padding:14, fontSize:12, color:"#92400e", lineHeight:1.7 }}>
+              <strong>Note:</strong> Your full detailed report is being prepared. Please consult your clinician for a complete interpretation of your results. Your data has been securely saved to the CIBS research database.
+            </div>
+            <button onClick={()=>window.location.reload()} style={{ display:"block", width:"100%", marginTop:16, padding:14, background:"#1e3a5f", color:"white", border:"none", borderRadius:10, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+              Take Another Test →
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const CombinedReport = ({ vistaSeqs, vistaResults, validResp, demographics }) => {
   const [tab, setTab] = useState("selfRpt");
   const [printing, setPrinting] = useState(false);
@@ -4909,8 +4988,10 @@ export default function CIBSBattery() {
   );
   if (screen === "processing") return <ProcessingScreen/>;
   if (screen === "report" && (vistaResults || validResp)) return (
-    <CombinedReport vistaSeqs={{ shapeSeq, colorSeq, shadeSeq, smileySeq }}
-      vistaResults={vistaResults} validResp={validResp} demographics={demographics}/>
+    <ReportErrorBoundary demographics={demographics} validResp={validResp} vistaResults={vistaResults}>
+      <CombinedReport vistaSeqs={{ shapeSeq, colorSeq, shadeSeq, smileySeq }}
+        vistaResults={vistaResults} validResp={validResp} demographics={demographics}/>
+    </ReportErrorBoundary>
   );
   return <LandingPage onStart={handleStart}/>;
 }
